@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Balatro</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/theme/love.css">
+    <script src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/consolewrapper.js"></script>
+    <style>
+      body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <canvas id="loadingCanvas" oncontextmenu="event.preventDefault()"></canvas>
+    <canvas id="canvas" oncontextmenu="event.preventDefault()" style="display:none;"></canvas>
+
+    <script>
+      var Module = {
+        arguments: ["./game.love"],
+        INITIAL_MEMORY: 256000000,
+        printErr: console.error.bind(console),
+        canvas: document.getElementById('canvas'),
+        setStatus: function(text) {
+          if (!text && Module.remainingDependencies === 0) {
+            document.getElementById('loadingCanvas').style.display = 'none';
+            document.getElementById('canvas').style.display = 'block';
+          }
+        },
+        totalDependencies: 0,
+        remainingDependencies: 0,
+        monitorRunDependencies: function(left) {
+          this.remainingDependencies = left;
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+        }
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/game.js?v=d7e34743-2fea-4de6-8a0e-1103b5fcf07f"></script>
+    <script async src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/love.js" onload="Love(Module)"></script>
+  </body>
+</html>
