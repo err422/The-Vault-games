@@ -1,64 +1,72 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-us">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Balatro</title>
   <base href="https://cdn.jsdelivr.net/gh/aukak/fyinx@latest/g/balatro/">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/theme/love.css">
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, minimum-scale=1, maximum-scale=1">
+  <title>Balatro</title>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/theme/love.css">
   <script src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/consolewrapper.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100%; height: 100%;
-      background: #000;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-    }
-    #loadingCanvas, #canvas {
-      max-width: 100%;
-      max-height: 100%;
-    }
+    * { margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    canvas { display: block; }
   </style>
 </head>
 <body>
-  <canvas id="loadingCanvas" oncontextmenu="event.preventDefault()" width="1324" height="620"></canvas>
-  <canvas id="canvas"        oncontextmenu="event.preventDefault()" width="1324" height="620" style="display:none;"></canvas>
+  <center>
+    <div>
+      <canvas id="loadingCanvas" oncontextmenu="event.preventDefault()" width="1324" height="527" style="display: none;"></canvas>
+      <canvas id="canvas"        oncontextmenu="event.preventDefault()" width="1324" height="620" style="cursor: default; visibility: visible;"></canvas>
+    </div>
+  </center>
 
-  <script>
-    // Resize loading canvas to fill viewport
-    var lc = document.getElementById('loadingCanvas');
-    lc.width  = window.innerWidth;
-    lc.height = window.innerHeight;
+  <script type="text/javascript">
+    var canvas = document.getElementById("loadingCanvas");
+    canvas.width  = window.innerWidth  || document.documentElement.clientWidth  || document.body.clientWidth;
+    canvas.height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
 
-    var loadingCtx = lc.getContext('2d');
-
-    function drawLoadingText(text) {
-      loadingCtx.fillStyle = '#1a0a2e';
-      loadingCtx.fillRect(0, 0, lc.width, lc.height);
-      loadingCtx.font = 'bold 1.6em monospace';
-      loadingCtx.textAlign = 'center';
-      loadingCtx.fillStyle = '#ff6b6b';
-      loadingCtx.fillText(text, lc.width / 2, lc.height / 2);
+    function goFullScreen() {
+      var c = document.getElementById("canvas");
+      if      (c.requestFullScreen)       c.requestFullScreen();
+      else if (c.webkitRequestFullScreen) c.webkitRequestFullScreen();
+      else if (c.mozRequestFullScreen)    c.mozRequestFullScreen();
     }
 
-    window.onload   = function() { window.focus(); };
-    window.onclick  = function() { window.focus(); };
+    function FullScreenHook() {
+      var c = document.getElementById("canvas");
+      c.width  = window.innerWidth  || document.documentElement.clientWidth  || document.body.clientWidth;
+      c.height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+    }
 
-    window.addEventListener('keydown', function(e) {
+    var loadingContext = document.getElementById('loadingCanvas').getContext('2d');
+
+    function drawLoadingText(text) {
+      var c = loadingContext.canvas;
+      loadingContext.fillStyle = "rgb(142, 195, 227)";
+      loadingContext.fillRect(0, 0, c.scrollWidth, c.scrollHeight);
+      loadingContext.font = '2em arial';
+      loadingContext.textAlign = 'center';
+      loadingContext.fillStyle = "rgb(11, 86, 117)";
+      loadingContext.fillText(text, c.scrollWidth / 2, c.scrollHeight / 2);
+    }
+
+    window.onload  = function() { window.focus(); };
+    window.onclick = function() { window.focus(); };
+
+    window.addEventListener("keydown", function(e) {
       if ([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) e.preventDefault();
     }, false);
 
     var Module = {
-      arguments: ['./game.love'],
+      arguments: ["./game.love"],
       INITIAL_MEMORY: 256000000,
       printErr: console.error.bind(console),
       canvas: (function() {
         var c = document.getElementById('canvas');
-        c.addEventListener('webglcontextlost', function(e) {
-          alert('WebGL context lost. Please reload the page.');
+        c.addEventListener("webglcontextlost", function(e) {
+          alert('WebGL context lost. You will need to reload the page.');
           e.preventDefault();
         }, false);
         return c;
@@ -68,7 +76,7 @@
           drawLoadingText(text);
         } else if (Module.remainingDependencies === 0) {
           document.getElementById('loadingCanvas').style.display = 'none';
-          document.getElementById('canvas').style.display = 'block';
+          document.getElementById('canvas').style.visibility = 'visible';
         }
       },
       totalDependencies: 0,
@@ -77,22 +85,24 @@
         this.remainingDependencies = left;
         this.totalDependencies = Math.max(this.totalDependencies, left);
         Module.setStatus(left
-          ? 'Loading... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')'
+          ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')'
           : 'All downloads complete.');
       }
     };
 
     Module.setStatus('Downloading...');
 
-    window.onerror = function() {
-      Module.setStatus('An error occurred — see console for details.');
-      Module.setStatus = function(t) { if (t) Module.printErr('[post-error] ' + t); };
+    window.onerror = function(event) {
+      Module.setStatus('Exception thrown, see JavaScript console');
+      Module.setStatus = function(text) {
+        if (text) Module.printErr('[post-exception status] ' + text);
+      };
     };
 
-    function applicationLoad() { Love(Module); }
+    var applicationLoad = function(e) { Love(Module); }
   </script>
 
-  <script src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/game.js?v=d7e34743-2fea-4de6-8a0e-1103b5fcf07f"></script>
-  <script async src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/love.js" onload="applicationLoad()"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/game.js?v=d7e34743-2fea-4de6-8a0e-1103b5fcf07f"></script>
+  <script async type="text/javascript" src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/love.js" onload="applicationLoad(this)"></script>
 </body>
 </html>
