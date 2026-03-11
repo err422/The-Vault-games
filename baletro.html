@@ -1,40 +1,98 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Balatro</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/theme/love.css">
-    <script src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/consolewrapper.js"></script>
-    <style>
-      body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
-      canvas { display: block; }
-    </style>
-  </head>
-  <body>
-    <canvas id="loadingCanvas" oncontextmenu="event.preventDefault()"></canvas>
-    <canvas id="canvas" oncontextmenu="event.preventDefault()" style="display:none;"></canvas>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Balatro</title>
+  <base href="https://cdn.jsdelivr.net/gh/aukak/fyinx@latest/g/balatro/">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/theme/love.css">
+  <script src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/consolewrapper.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    #loadingCanvas, #canvas {
+      max-width: 100%;
+      max-height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="loadingCanvas" oncontextmenu="event.preventDefault()" width="1324" height="620"></canvas>
+  <canvas id="canvas"        oncontextmenu="event.preventDefault()" width="1324" height="620" style="display:none;"></canvas>
 
-    <script>
-      var Module = {
-        arguments: ["./game.love"],
-        INITIAL_MEMORY: 256000000,
-        printErr: console.error.bind(console),
-        canvas: document.getElementById('canvas'),
-        setStatus: function(text) {
-          if (!text && Module.remainingDependencies === 0) {
-            document.getElementById('loadingCanvas').style.display = 'none';
-            document.getElementById('canvas').style.display = 'block';
-          }
-        },
-        totalDependencies: 0,
-        remainingDependencies: 0,
-        monitorRunDependencies: function(left) {
-          this.remainingDependencies = left;
-          this.totalDependencies = Math.max(this.totalDependencies, left);
+  <script>
+    // Resize loading canvas to fill viewport
+    var lc = document.getElementById('loadingCanvas');
+    lc.width  = window.innerWidth;
+    lc.height = window.innerHeight;
+
+    var loadingCtx = lc.getContext('2d');
+
+    function drawLoadingText(text) {
+      loadingCtx.fillStyle = '#1a0a2e';
+      loadingCtx.fillRect(0, 0, lc.width, lc.height);
+      loadingCtx.font = 'bold 1.6em monospace';
+      loadingCtx.textAlign = 'center';
+      loadingCtx.fillStyle = '#ff6b6b';
+      loadingCtx.fillText(text, lc.width / 2, lc.height / 2);
+    }
+
+    window.onload   = function() { window.focus(); };
+    window.onclick  = function() { window.focus(); };
+
+    window.addEventListener('keydown', function(e) {
+      if ([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) e.preventDefault();
+    }, false);
+
+    var Module = {
+      arguments: ['./game.love'],
+      INITIAL_MEMORY: 256000000,
+      printErr: console.error.bind(console),
+      canvas: (function() {
+        var c = document.getElementById('canvas');
+        c.addEventListener('webglcontextlost', function(e) {
+          alert('WebGL context lost. Please reload the page.');
+          e.preventDefault();
+        }, false);
+        return c;
+      })(),
+      setStatus: function(text) {
+        if (text) {
+          drawLoadingText(text);
+        } else if (Module.remainingDependencies === 0) {
+          document.getElementById('loadingCanvas').style.display = 'none';
+          document.getElementById('canvas').style.display = 'block';
         }
-      };
-    </script>
-    <script src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/game.js?v=d7e34743-2fea-4de6-8a0e-1103b5fcf07f"></script>
-    <script async src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/love.js" onload="Love(Module)"></script>
-  </body>
+      },
+      totalDependencies: 0,
+      remainingDependencies: 0,
+      monitorRunDependencies: function(left) {
+        this.remainingDependencies = left;
+        this.totalDependencies = Math.max(this.totalDependencies, left);
+        Module.setStatus(left
+          ? 'Loading... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')'
+          : 'All downloads complete.');
+      }
+    };
+
+    Module.setStatus('Downloading...');
+
+    window.onerror = function() {
+      Module.setStatus('An error occurred — see console for details.');
+      Module.setStatus = function(t) { if (t) Module.printErr('[post-error] ' + t); };
+    };
+
+    function applicationLoad() { Love(Module); }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/game.js?v=d7e34743-2fea-4de6-8a0e-1103b5fcf07f"></script>
+  <script async src="https://cdn.jsdelivr.net/gh/aukak/fyinx@main/g/balatro/love.js" onload="applicationLoad()"></script>
+</body>
 </html>
