@@ -33,5 +33,73 @@
 </head>
 <body>
   <div id="game_frame"></div>
+
+  <script>
+    (function () {
+      var canvas = null;
+      var pointerLockLost = false;
+
+      // Poll until EaglerCraft creates its canvas, then attach fixes
+      function waitForCanvas() {
+        var found = document.querySelector('#game_frame canvas');
+        if (!found) {
+          setTimeout(waitForCanvas, 300);
+          return;
+        }
+        canvas = found;
+        attachFixes();
+      }
+
+      function attachFixes() {
+        // Make canvas focusable if it isn't already
+        if (!canvas.getAttribute('tabindex')) {
+          canvas.setAttribute('tabindex', '0');
+        }
+
+        // ── Fix 1: Re-focus canvas on mouse enter so keyboard works again ──
+        canvas.addEventListener('mouseenter', function () {
+          canvas.focus({ preventScroll: true });
+        });
+
+        // ── Fix 2: Track when pointer lock is lost ──
+        document.addEventListener('pointerlockchange', function () {
+          if (document.pointerLockElement === canvas) {
+            pointerLockLost = false;
+          } else {
+            pointerLockLost = true;
+          }
+        });
+
+        // ── Fix 3: Re-request pointer lock on canvas click when it's lost ──
+        // This is what makes "Back to game" work — the button lives inside
+        // the canvas/game UI, so a click on it bubbles up here.
+        canvas.addEventListener('click', function () {
+          if (pointerLockLost && document.pointerLockElement !== canvas) {
+            canvas.focus({ preventScroll: true });
+            canvas.requestPointerLock();
+          }
+        });
+
+        // ── Fix 4: Also catch clicks anywhere on game_frame as a fallback ──
+        // (some EaglerCraft builds render the "Back to game" overlay outside
+        //  the canvas element itself)
+        var frame = document.getElementById('game_frame');
+        if (frame) {
+          frame.addEventListener('click', function () {
+            if (pointerLockLost && document.pointerLockElement !== canvas) {
+              canvas.focus({ preventScroll: true });
+              canvas.requestPointerLock();
+            }
+          });
+
+          frame.addEventListener('mouseenter', function () {
+            canvas.focus({ preventScroll: true });
+          });
+        }
+      }
+
+      waitForCanvas();
+    })();
+  </script>
 </body>
 </html>
