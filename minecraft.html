@@ -34,15 +34,13 @@
 <body>
   <div id="game_frame"></div>
   <script type="text/javascript">
-    document.addEventListener('keydown', function(e) {
-      if (e.altKey && e.key === '`') {
-        e.preventDefault();
-        if (parent && typeof parent.toggleFullscreen === 'function') {
-          parent.toggleFullscreen();
-        }
-      }
-    });
-  </script>
+  document.addEventListener('keydown', function(e) {
+    if (e.altKey && e.key === '`') {
+      e.preventDefault();
+      parent.postMessage({ type: 'toggleFullscreen' }, '*');
+    }
+  });
+</script>
 </body>
 </html>
 </body>
