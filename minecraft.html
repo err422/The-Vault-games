@@ -239,25 +239,51 @@
       '1.12.2': 'https://eaglercraftx1-8.github.io/eagler-files/1.12/Main/index.html'
     };
 
-    const launcher        = document.getElementById('launcher');
-    const gameScreen      = document.getElementById('game-screen');
-    const gameFrame       = document.getElementById('game-frame');
-    const pointerOverlay  = document.getElementById('pointer-overlay');
+    const launcher       = document.getElementById('launcher');
+    const gameScreen     = document.getElementById('game-screen');
+    const gameFrame      = document.getElementById('game-frame');
+    const pointerOverlay = document.getElementById('pointer-overlay');
 
     let pointerWasLocked = false;
     let overlayTimeout   = null;
+    let focusPollId      = null;
+    let gameActive       = false;
 
+    /* ── Focus helpers ── */
     function refocusGame() {
       gameFrame.focus();
       try { gameFrame.contentWindow.focus(); } catch(e) {}
     }
 
+    /* Silent refocus: if the game is active and pointer lock is held but
+       this document has unexpectedly received focus (e.g. after the Vault's
+       fullscreen button was clicked), quietly hand focus back to the iframe.
+       We only do this while pointer lock is active so we don't fight the user
+       when they intentionally click outside (overlay, back button, etc.). */
+    function startFocusPoll() {
+      stopFocusPoll();
+      focusPollId = setInterval(function() {
+        if (!gameActive) return;
+        const locked = !!(document.pointerLockElement || document.mozPointerLockElement);
+        if (locked && document.activeElement !== gameFrame) {
+          refocusGame();
+        }
+      }, 200);
+    }
+
+    function stopFocusPoll() {
+      if (focusPollId !== null) { clearInterval(focusPollId); focusPollId = null; }
+    }
+
+    /* ── Launch / back ── */
     function launch(version) {
       gameFrame.src = VERSIONS[version];
       launcher.style.display = 'none';
       gameScreen.style.display = 'block';
       pointerOverlay.classList.remove('visible');
       pointerWasLocked = false;
+      gameActive = true;
+      startFocusPoll();
       gameFrame.addEventListener('load', function onLoad() {
         gameFrame.removeEventListener('load', onLoad);
         refocusGame();
@@ -265,6 +291,8 @@
     }
 
     function goBack() {
+      gameActive = false;
+      stopFocusPoll();
       gameFrame.src = 'about:blank';
       pointerOverlay.classList.remove('visible');
       pointerWasLocked = false;
@@ -273,14 +301,23 @@
       launcher.style.display = 'flex';
     }
 
+    /* ── Pointer lock tracking ── */
     function onPointerLockChange() {
-      if (gameScreen.style.display !== 'block') return;
+      if (!gameActive) return;
       const locked = !!(document.pointerLockElement || document.mozPointerLockElement);
       if (locked) {
         pointerWasLocked = true;
         hideOverlay();
       } else if (pointerWasLocked) {
-        showOverlay();
+        /* Small delay — if this was caused by the fullscreen button,
+           the poll will silently refocus and pointer lock will re-engage
+           without needing the overlay. Only show overlay if lock is still
+           gone after the dust settles. */
+        clearTimeout(overlayTimeout);
+        overlayTimeout = setTimeout(function() {
+          const stillUnlocked = !(document.pointerLockElement || document.mozPointerLockElement);
+          if (stillUnlocked) showOverlay();
+        }, 400);
       }
     }
 
@@ -300,13 +337,12 @@
     pointerOverlay.addEventListener('click', function() {
       hideOverlay();
       refocusGame();
-      try {
-        gameFrame.contentDocument?.documentElement?.requestPointerLock?.();
-      } catch(e) {}
+      try { gameFrame.contentDocument?.documentElement?.requestPointerLock?.(); } catch(e) {}
     });
 
+    /* ── Fullscreen change → refocus (covers the ⛶ iframe-fullscreen button) ── */
     function onFullscreenChange() {
-      if (gameScreen.style.display !== 'block') return;
+      if (!gameActive) return;
       setTimeout(refocusGame, 80);
     }
 
@@ -314,12 +350,13 @@
     document.addEventListener('webkitfullscreenchange', onFullscreenChange);
     document.addEventListener('mozfullscreenchange', onFullscreenChange);
 
+    /* ── Keyboard ── */
     document.addEventListener('keydown', function(e) {
       if (e.altKey && e.key === '`') {
         e.preventDefault();
         try { parent.postMessage({ type: 'toggleFullscreen' }, '*'); } catch(e) {}
       }
-      if (e.key === 'Escape' && gameScreen.style.display === 'block') {
+      if (e.key === 'Escape' && gameActive) {
         clearTimeout(overlayTimeout);
         overlayTimeout = setTimeout(function() {
           const locked = !!(document.pointerLockElement || document.mozPointerLockElement);
@@ -328,6 +365,7 @@
       }
     });
 
+    /* ── postMessage passthrough ── */
     window.addEventListener('message', function(evt) {
       if (!evt.data) return;
       if (evt.data.type === 'toggleFullscreen') {
