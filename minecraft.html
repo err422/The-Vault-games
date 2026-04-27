@@ -1,47 +1,392 @@
 <!DOCTYPE html>
-<html style="width:100%;height:100%;background-color:black;">
+<html lang="en" style="width:100%;height:100%;background:#0a0a0a;">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0">
-  <title>Minecraft 1.12.2</title>
-  <link type="image/png" rel="shortcut icon" href="https://cdn.jsdelivr.net/gh/genizy/mc@main/shared/game.png">
-  <script type="text/javascript">
-    window.disableUserscripts = true;
-    window.__eaglercraftLoaderClient = {
-      container: "game_frame",
-      name: "Eaglercraft 1.12",
-      file: "net.peytonplayz585.eaglercraft.v1_12.client",
-      cid: "bafybeidrnchyech7b26rqhm3tayt7p6mxvl23lzd4f5mcyqda7hbrzyal4",
-      path: "",
-      download: "https://cdn.jsdelivr.net/gh/genizy/mc@main/data/1.12.2.gz",
-      dlSize: 15601341,
-      gzip: true
-    };
-  </script>
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/gh/genizy/mc@main/shared/loader.js"></script>
+  <title>Minecraft – The Vault</title>
+  <link rel="shortcut icon" type="image/png" href="https://cdn.jsdelivr.net/gh/genizy/mc@main/shared/game.png">
   <style>
-    * { margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
     html, body {
       width: 100%; height: 100%;
       overflow: hidden;
-      background-color: black;
+      background: #0a0a0a;
+      font-family: 'VT323', monospace;
     }
-    #game_frame {
-      width: 100%; height: 100%; overflow: hidden;
+
+    /* ── Launcher screen ── */
+    #launcher {
+      width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0a0a0a;
+      position: relative;
+      overflow: hidden;
     }
+
+    /* Dirt-texture grid background */
+    #launcher::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+    }
+
+    .launcher-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+      padding: 2rem;
+    }
+
+    .mc-logo {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(1.4rem, 5vw, 2.6rem);
+      color: #fff;
+      text-shadow:
+        3px 3px 0 #3a3a3a,
+        -1px -1px 0 #555;
+      letter-spacing: 2px;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .mc-logo span {
+      color: #5aff5a;
+      text-shadow:
+        3px 3px 0 #1a6b1a,
+        -1px -1px 0 #2fa02f;
+    }
+
+    .subtitle {
+      font-family: 'VT323', monospace;
+      font-size: 1.4rem;
+      color: #888;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .version-grid {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .version-card {
+      width: 220px;
+      background: #1a1a1a;
+      border: 2px solid #333;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.1s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .version-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(90,255,90,0.04) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .version-card:hover {
+      border-color: #5aff5a;
+      transform: translateY(-3px);
+    }
+
+    .version-card:hover::before { opacity: 1; }
+
+    .version-card:active { transform: translateY(0); }
+
+    .card-banner {
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 1.4rem;
+      letter-spacing: 1px;
+    }
+
+    .banner-188 {
+      background: #0d2b0d;
+      color: #5aff5a;
+      text-shadow: 2px 2px 0 #1a6b1a;
+    }
+
+    .banner-1122 {
+      background: #0d1e2b;
+      color: #5ab4ff;
+      text-shadow: 2px 2px 0 #1a4b6b;
+    }
+
+    .card-body {
+      padding: 1rem;
+      border-top: 2px solid #333;
+    }
+
+    .card-version {
+      font-size: 1.1rem;
+      color: #ccc;
+      margin-bottom: 0.3rem;
+    }
+
+    .card-desc {
+      font-size: 0.95rem;
+      color: #666;
+    }
+
+    .card-badge {
+      display: inline-block;
+      margin-top: 0.5rem;
+      padding: 2px 8px;
+      font-size: 0.85rem;
+      background: #222;
+      border: 1px solid #444;
+      color: #888;
+    }
+
+    .card-badge.stable { border-color: #2a5c2a; color: #5aff5a; }
+    .card-badge.newer  { border-color: #1a4060; color: #5ab4ff; }
+
+    .launch-hint {
+      font-size: 1rem;
+      color: #444;
+      letter-spacing: 2px;
+      animation: blink 1.5s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* ── Game screen ── */
+    #game-screen {
+      display: none;
+      width: 100%; height: 100%;
+      position: relative;
+      background: #000;
+    }
+
+    #game-frame {
+      width: 100%; height: 100%;
+      border: none;
+      display: block;
+    }
+
+    /* Pointer lock recapture overlay */
+    #pointer-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 1rem;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    #pointer-overlay.visible {
+      display: flex;
+    }
+
+    .overlay-icon {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.9rem, 2.5vw, 1.3rem);
+      color: #fff;
+      text-align: center;
+      line-height: 2;
+    }
+
+    .overlay-sub {
+      font-size: 1.2rem;
+      color: #888;
+      letter-spacing: 2px;
+    }
+
+    .back-btn {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 20;
+      font-family: 'VT323', monospace;
+      font-size: 1.1rem;
+      color: #666;
+      background: rgba(0,0,0,0.6);
+      border: 1px solid #333;
+      padding: 4px 10px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .back-btn:hover { color: #ccc; border-color: #666; }
   </style>
 </head>
 <body>
-  <div id="game_frame"></div>
-  <script type="text/javascript">
-  document.addEventListener('keydown', function(e) {
-    if (e.altKey && e.key === '`') {
-      e.preventDefault();
-      parent.postMessage({ type: 'toggleFullscreen' }, '*');
+
+  <!-- ── Launcher ── -->
+  <div id="launcher">
+    <div class="launcher-inner">
+      <div class="mc-logo">MINE<span>CRAFT</span></div>
+      <div class="subtitle">Select a version</div>
+
+      <div class="version-grid">
+
+        <div class="version-card" onclick="launch('1.8.8')">
+          <div class="card-banner banner-188">1.8</div>
+          <div class="card-body">
+            <div class="card-version">EaglercraftX 1.8.8</div>
+            <div class="card-desc">Full singleplayer & multiplayer</div>
+            <span class="card-badge stable">Most Stable</span>
+          </div>
+        </div>
+
+        <div class="version-card" onclick="launch('1.12.2')">
+          <div class="card-banner banner-1122">1.12</div>
+          <div class="card-body">
+            <div class="card-version">Eaglercraft 1.12.2</div>
+            <div class="card-desc">Newer features & mechanics</div>
+            <span class="card-badge newer">Newer Build</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="launch-hint">▶ click a version to play</div>
+    </div>
+  </div>
+
+  <!-- ── Game screen ── -->
+  <div id="game-screen">
+    <button class="back-btn" onclick="goBack()">← BACK</button>
+
+    <div id="pointer-overlay">
+      <div class="overlay-icon">GAME PAUSED<br>Click to Resume</div>
+      <div class="overlay-sub">[ mouse unlocked ]</div>
+    </div>
+
+    <iframe
+      id="game-frame"
+      allow="fullscreen; pointer-lock"
+      allowfullscreen
+      sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-popups"
+    ></iframe>
+  </div>
+
+  <script>
+    const VERSIONS = {
+      '1.8.8':  'https://eaglercraft1-8.github.io/',
+      '1.12.2': 'https://eaglercraftx1-8.github.io/eagler-files/1.12/Main/index.html'
+    };
+
+    const launcher      = document.getElementById('launcher');
+    const gameScreen    = document.getElementById('game-screen');
+    const gameFrame     = document.getElementById('game-frame');
+    const pointerOverlay = document.getElementById('pointer-overlay');
+
+    let activeVersion = null;
+    let pointerWasLocked = false;
+    let overlayTimeout = null;
+
+    function launch(version) {
+      activeVersion = version;
+      gameFrame.src = VERSIONS[version];
+      launcher.style.display = 'none';
+      gameScreen.style.display = 'block';
+      pointerOverlay.classList.remove('visible');
     }
-  });
-</script>
-</body>
-</html>
+
+    function goBack() {
+      gameFrame.src = 'about:blank';
+      activeVersion = null;
+      pointerOverlay.classList.remove('visible');
+      gameScreen.style.display = 'none';
+      launcher.style.display = 'flex';
+    }
+
+    /* ── Pointer lock handling ── */
+    document.addEventListener('pointerlockchange', onPointerLockChange);
+    document.addEventListener('mozpointerlockchange', onPointerLockChange);
+
+    function onPointerLockChange() {
+      const locked = !!(
+        document.pointerLockElement ||
+        document.mozPointerLockElement
+      );
+
+      if (gameScreen.style.display !== 'block') return;
+
+      if (locked) {
+        pointerWasLocked = true;
+        hideOverlay();
+      } else if (pointerWasLocked) {
+        showOverlay();
+      }
+    }
+
+    function showOverlay() {
+      clearTimeout(overlayTimeout);
+      pointerOverlay.classList.add('visible');
+    }
+
+    function hideOverlay() {
+      clearTimeout(overlayTimeout);
+      pointerOverlay.classList.remove('visible');
+    }
+
+    pointerOverlay.addEventListener('click', function() {
+      hideOverlay();
+      gameFrame.focus();
+      try {
+        gameFrame.contentDocument?.documentElement?.requestPointerLock?.();
+      } catch(e) {}
+    });
+
+    /* ── Alt + ` → toggle fullscreen via postMessage to Vault parent ── */
+    document.addEventListener('keydown', function(e) {
+      if (e.altKey && e.key === '`') {
+        e.preventDefault();
+        try {
+          parent.postMessage({ type: 'toggleFullscreen' }, '*');
+        } catch(e) {}
+      }
+
+      /* Escape while in game → show overlay instead of silently losing mouse */
+      if (e.key === 'Escape' && gameScreen.style.display === 'block') {
+        overlayTimeout = setTimeout(function() {
+          if (!document.pointerLockElement && !document.mozPointerLockElement) {
+            showOverlay();
+          }
+        }, 150);
+      }
+    });
+
+    /* Also listen for postMessage from the game iframe in case it signals unlock */
+    window.addEventListener('message', function(evt) {
+      if (evt.source === gameFrame.contentWindow) return; /* ignore game frames */
+      if (evt.data && evt.data.type === 'toggleFullscreen') {
+        parent.postMessage({ type: 'toggleFullscreen' }, '*');
+      }
+    });
+  </script>
 </body>
 </html>
