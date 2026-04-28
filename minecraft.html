@@ -18,6 +18,7 @@
       color: #e0e0e0;
     }
 
+    /* ── Launcher ── */
     #launcher {
       width: 100%; height: 100%;
       display: flex;
@@ -72,11 +73,7 @@
       overflow: hidden;
     }
 
-    .version-card:hover {
-      border-color: #3a3a3a;
-      background: #1c1c1c;
-    }
-
+    .version-card:hover { border-color: #3a3a3a; background: #1c1c1c; }
     .version-card:active { background: #202020; }
 
     .card-tag {
@@ -84,7 +81,6 @@
       font-weight: 500;
       letter-spacing: 0.2em;
       text-transform: uppercase;
-      color: #444;
     }
 
     .card-tag.stable { color: #3d7a3d; }
@@ -113,10 +109,7 @@
       transition: color 0.15s, transform 0.15s;
     }
 
-    .version-card:hover .card-arrow {
-      color: #555;
-      transform: translate(2px, -2px);
-    }
+    .version-card:hover .card-arrow { color: #555; transform: translate(2px, -2px); }
 
     .hint {
       font-size: 0.65rem;
@@ -125,6 +118,7 @@
       color: #2e2e2e;
     }
 
+    /* ── Game screen ── */
     #game-screen {
       display: none;
       width: 100%; height: 100%;
@@ -136,38 +130,57 @@
       width: 100%; height: 100%;
       border: none;
       display: block;
+      position: absolute;
+      top: 0; left: 0;
     }
 
-    #pointer-overlay {
+    /* Click-catcher: transparent, sits on top of the iframe.
+       The browser requires a REAL user click inside a cross-origin iframe
+       before it will send keyboard events to it — programmatic .focus() is
+       not enough. When shown, this overlay intercepts the next click and
+       forwards it as a real pointer event into the iframe via dispatchEvent,
+       then removes itself so gameplay continues uninterrupted. */
+    #click-catcher {
       display: none;
       position: absolute;
       inset: 0;
-      background: rgba(0,0,0,0.75);
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 0.75rem;
-      cursor: pointer;
       z-index: 10;
+      cursor: pointer;
+      background: transparent;
     }
 
-    #pointer-overlay.visible { display: flex; }
+    #click-catcher.visible { display: block; }
 
-    .overlay-title {
-      font-size: 0.75rem;
+    /* Toast: tells the user to click back in */
+    #focus-toast {
+      display: none;
+      position: absolute;
+      bottom: 1.4rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.85);
+      border: 1px solid #2a2a2a;
+      border-radius: 5px;
+      padding: 0.45rem 1rem;
+      font-size: 0.62rem;
       font-weight: 500;
-      letter-spacing: 0.2em;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: #ccc;
+      color: #888;
+      pointer-events: none;
+      z-index: 11;
+      white-space: nowrap;
+      animation: fadeUp 0.2s ease;
     }
 
-    .overlay-sub {
-      font-size: 0.65rem;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: #444;
+    #focus-toast.visible { display: block; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(5px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
 
+    /* Back button */
     .back-btn {
       position: absolute;
       top: 10px;
@@ -192,6 +205,7 @@
 </head>
 <body>
 
+  <!-- ── Launcher ── -->
   <div id="launcher">
     <div class="logo-wrap">
       <img class="logo-icon" src="https://cdn.jsdelivr.net/gh/genizy/mc@main/shared/game.png" alt="Minecraft">
@@ -217,13 +231,15 @@
     <span class="hint">Select a version to play</span>
   </div>
 
+  <!-- ── Game screen ── -->
   <div id="game-screen">
     <button class="back-btn" onclick="goBack()">← Back</button>
 
-    <div id="pointer-overlay">
-      <span class="overlay-title">Click to Resume</span>
-      <span class="overlay-sub">Mouse focus lost</span>
-    </div>
+    <!-- Transparent click-catcher shown when keyboard focus is lost -->
+    <div id="click-catcher"></div>
+
+    <!-- Toast nudge -->
+    <div id="focus-toast">Click to resume keyboard</div>
 
     <iframe
       id="game-frame"
@@ -239,137 +255,114 @@
       '1.12.2': 'https://eaglercraftx1-8.github.io/eagler-files/1.12/Main/index.html'
     };
 
-    const launcher       = document.getElementById('launcher');
-    const gameScreen     = document.getElementById('game-screen');
-    const gameFrame      = document.getElementById('game-frame');
-    const pointerOverlay = document.getElementById('pointer-overlay');
+    const launcher     = document.getElementById('launcher');
+    const gameScreen   = document.getElementById('game-screen');
+    const gameFrame    = document.getElementById('game-frame');
+    const catcher      = document.getElementById('click-catcher');
+    const toast        = document.getElementById('focus-toast');
 
-    let pointerWasLocked = false;
-    let overlayTimeout   = null;
-    let focusPollId      = null;
     let gameActive       = false;
+    let toastTimeout     = null;
 
-    /* ── Focus helpers ── */
-    function refocusGame() {
+    /* ── Show / hide the click-catcher + toast ── */
+    function showCatcher() {
+      catcher.classList.add('visible');
+      toast.classList.add('visible');
+      clearTimeout(toastTimeout);
+      /* Auto-hide toast after 4s so it doesn't linger forever */
+      toastTimeout = setTimeout(function() {
+        toast.classList.remove('visible');
+      }, 4000);
+    }
+
+    function hideCatcher() {
+      catcher.classList.remove('visible');
+      toast.classList.remove('visible');
+      clearTimeout(toastTimeout);
+    }
+
+    /* When the user clicks the catcher, hide it and pass a real synthetic
+       click through to the iframe. The browser sees this as a genuine user
+       interaction with the iframe and restores keyboard event routing. */
+    catcher.addEventListener('click', function(e) {
+      hideCatcher();
+      /* Fire a real click at the same coordinates into the iframe */
+      try {
+        var rect = gameFrame.getBoundingClientRect();
+        var x = e.clientX - rect.left;
+        var y = e.clientY - rect.top;
+        var synth = new MouseEvent('click', {
+          bubbles: true, cancelable: true,
+          clientX: e.clientX, clientY: e.clientY,
+          screenX: e.screenX, screenY: e.screenY
+        });
+        gameFrame.dispatchEvent(synth);
+      } catch(err) {}
       gameFrame.focus();
-      try { gameFrame.contentWindow.focus(); } catch(e) {}
-    }
-
-    /* Silent refocus: if the game is active and pointer lock is held but
-       this document has unexpectedly received focus (e.g. after the Vault's
-       fullscreen button was clicked), quietly hand focus back to the iframe.
-       We only do this while pointer lock is active so we don't fight the user
-       when they intentionally click outside (overlay, back button, etc.). */
-    function startFocusPoll() {
-      stopFocusPoll();
-      focusPollId = setInterval(function() {
-        if (!gameActive) return;
-        const locked = !!(document.pointerLockElement || document.mozPointerLockElement);
-        if (locked && document.activeElement !== gameFrame) {
-          refocusGame();
-        }
-      }, 200);
-    }
-
-    function stopFocusPoll() {
-      if (focusPollId !== null) { clearInterval(focusPollId); focusPollId = null; }
-    }
+    });
 
     /* ── Launch / back ── */
     function launch(version) {
       gameFrame.src = VERSIONS[version];
       launcher.style.display = 'none';
       gameScreen.style.display = 'block';
-      pointerOverlay.classList.remove('visible');
-      pointerWasLocked = false;
+      hideCatcher();
       gameActive = true;
-      startFocusPoll();
-      gameFrame.addEventListener('load', function onLoad() {
-        gameFrame.removeEventListener('load', onLoad);
-        refocusGame();
-      }, { once: true });
     }
 
     function goBack() {
       gameActive = false;
-      stopFocusPoll();
+      hideCatcher();
       gameFrame.src = 'about:blank';
-      pointerOverlay.classList.remove('visible');
-      pointerWasLocked = false;
-      clearTimeout(overlayTimeout);
       gameScreen.style.display = 'none';
       launcher.style.display = 'flex';
     }
 
-    /* ── Pointer lock tracking ── */
-    function onPointerLockChange() {
+    /* ── Detect keyboard focus loss on this document ──
+       When the browser window's fullscreen button is clicked, focus lands
+       on the parent Vault page (outside this iframe). From minecraft.html's
+       perspective, the document fires a 'blur' event.
+       When the content-only fullscreen button is used, fullscreenchange fires.
+       Both trigger showCatcher() so the user gets a clear prompt to click back. */
+    window.addEventListener('blur', function() {
       if (!gameActive) return;
-      const locked = !!(document.pointerLockElement || document.mozPointerLockElement);
-      if (locked) {
-        pointerWasLocked = true;
-        hideOverlay();
-      } else if (pointerWasLocked) {
-        /* Small delay — if this was caused by the fullscreen button,
-           the poll will silently refocus and pointer lock will re-engage
-           without needing the overlay. Only show overlay if lock is still
-           gone after the dust settles. */
-        clearTimeout(overlayTimeout);
-        overlayTimeout = setTimeout(function() {
-          const stillUnlocked = !(document.pointerLockElement || document.mozPointerLockElement);
-          if (stillUnlocked) showOverlay();
-        }, 400);
-      }
-    }
-
-    document.addEventListener('pointerlockchange', onPointerLockChange);
-    document.addEventListener('mozpointerlockchange', onPointerLockChange);
-
-    function showOverlay() {
-      clearTimeout(overlayTimeout);
-      pointerOverlay.classList.add('visible');
-    }
-
-    function hideOverlay() {
-      clearTimeout(overlayTimeout);
-      pointerOverlay.classList.remove('visible');
-    }
-
-    pointerOverlay.addEventListener('click', function() {
-      hideOverlay();
-      refocusGame();
-      try { gameFrame.contentDocument?.documentElement?.requestPointerLock?.(); } catch(e) {}
+      /* Small delay — blur fires briefly during legit in-game interactions too */
+      setTimeout(function() {
+        if (gameActive) showCatcher();
+      }, 300);
     });
 
-    /* ── Fullscreen change → refocus (covers the ⛶ iframe-fullscreen button) ── */
+    window.addEventListener('focus', function() {
+      /* Window regained focus — but keyboard might still be broken if the
+         cross-origin iframe hasn't had a real click. Keep catcher visible
+         so the user clicks through properly. */
+    });
+
+    /* Fullscreen change also steals focus */
     function onFullscreenChange() {
       if (!gameActive) return;
-      setTimeout(refocusGame, 80);
+      setTimeout(function() {
+        if (gameActive) showCatcher();
+      }, 150);
     }
 
     document.addEventListener('fullscreenchange', onFullscreenChange);
     document.addEventListener('webkitfullscreenchange', onFullscreenChange);
     document.addEventListener('mozfullscreenchange', onFullscreenChange);
 
-    /* ── Keyboard ── */
+    /* ── Alt + ` → signal Vault to toggle fullscreen ── */
     document.addEventListener('keydown', function(e) {
       if (e.altKey && e.key === '`') {
         e.preventDefault();
-        try { parent.postMessage({ type: 'toggleFullscreen' }, '*'); } catch(e) {}
-      }
-      if (e.key === 'Escape' && gameActive) {
-        clearTimeout(overlayTimeout);
-        overlayTimeout = setTimeout(function() {
-          const locked = !!(document.pointerLockElement || document.mozPointerLockElement);
-          if (!locked && pointerWasLocked) showOverlay();
-        }, 150);
+        try { parent.postMessage({ type: 'toggleFullscreen' }, '*'); } catch(err) {}
       }
     });
 
-    /* ── postMessage passthrough ── */
+    /* ── postMessage passthrough from game iframe ── */
     window.addEventListener('message', function(evt) {
       if (!evt.data) return;
       if (evt.data.type === 'toggleFullscreen') {
-        try { parent.postMessage({ type: 'toggleFullscreen' }, '*'); } catch(e) {}
+        try { parent.postMessage({ type: 'toggleFullscreen' }, '*'); } catch(err) {}
       }
     });
   </script>
